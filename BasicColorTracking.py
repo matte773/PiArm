@@ -250,7 +250,33 @@ class ColorTracker:
 
         return  x, y
 
-    def run(self, img):
+    def getAngle(self, x, y, angle):
+        theta6 = round(math.degrees(math.atan2(abs(x), abs(y))), 1)
+        angle = abs(angle)
+        
+        if x < 0:
+            if y < 0:
+                angle1 = -(90 + theta6 - angle)
+            else:
+                angle1 = theta6 - angle
+        else:
+            if y < 0:
+                angle1 = theta6 + angle
+            else:
+                angle1 = 90 - theta6 - angle
+
+        if angle1 > 0:
+            angle2 = angle1 - 90
+        else:
+            angle2 = angle1 + 90
+
+        if abs(angle1) < abs(angle2):
+            servo_angle = int(500 + round(angle1 * 1000 / 240))
+        else:
+            servo_angle = int(500 + round(angle2 * 1000 / 240))
+        return servo_angle
+
+    def run(self, img, color):
         img_copy = img.copy()
         img_h, img_w = img.shape[:2]
         cv2.line(img, (0, int(img_h / 2)), (img_w, int(img_h / 2)), (0, 0, 200), 1)
@@ -267,34 +293,41 @@ class ColorTracker:
 
         box = []
         # for i in self.color_range:
-        for i in self.__target_color:
+        #for i in self.__target_color:
             # if i in self.__target_color:
-            frame_mask = cv2.inRange(frame_lab, self.color_range[i][0], self.color_range[i][1])
-            opened = cv2.morphologyEx(frame_mask, cv2.MORPH_OPEN, np.ones((6, 6), np.uint8))
-            closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, np.ones((6, 6), np.uint8))
-            contours = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]
-            areaMaxContour, area_max = self.getAreaMaxContour(contours)
+        
+        frame_mask = cv2.inRange(frame_lab, self.color_range[color][0], self.color_range[color][1])
+        opened = cv2.morphologyEx(frame_mask, cv2.MORPH_OPEN, np.ones((6, 6), np.uint8))
+        closed = cv2.morphologyEx(opened, cv2.MORPH_CLOSE, np.ones((6, 6), np.uint8))
+        contours = cv2.findContours(closed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)[-2]
+        areaMaxContour, area_max = self.getAreaMaxContour(contours)
+        world_x, world_y, angle = None, None, None
 
-            if area_max > 2500:
-                rect = cv2.minAreaRect(areaMaxContour)
-                box.append(np.int0(cv2.boxPoints(rect)))
+        if area_max > 2500:
+            rect = cv2.minAreaRect(areaMaxContour)
+            box.append(np.int0(cv2.boxPoints(rect)))
 
-                self.roi = self.getROI(box[-1])
-                self.get_roi = True
+            self.roi = self.getROI(box[-1])
+            # self.get_roi = True
 
-                img_centerx, img_centery = self.getCenter(rect, self.roi, self.size, square_length)
-                world_x, world_y = self.convertCoordinate(img_centerx, img_centery, self.size)
+            img_centerx, img_centery = self.getCenter(rect, self.roi, self.size, square_length)
+            world_x, world_y = self.convertCoordinate(img_centerx, img_centery, self.size)
+            world_y += 20
+            angle = self.getAngle(world_x, world_y, rect[2])
 
-                self.logger.info('Color: %s, World X: %s, World Y: %s', i, world_x, world_y)
+            self.logger.info('Color: %s, World X: %s, World Y: %s', color, world_x, world_y)
 
-                cv2.drawContours(img, [box[-1]], -1, self.range_rgb[i], 2)
-                cv2.putText(img, '(' + str(world_x) + ',' + str(world_y) + ')', (min(box[-1][0, 0], box[-1][2, 0]), box[-1][2, 1] - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.range_rgb[i], 1)
-                
-                # distance = math.sqrt(pow(world_x - self.last_x, 2) + pow(world_y - self.last_y, 2))
-                # self.last_x, self.last_y = world_x, world_y  # Update last_x and last_y
+            cv2.drawContours(img, [box[-1]], -1, self.range_rgb[color], 2)
+            cv2.putText(img, '(' + str(world_x) + ',' + str(world_y) + ')', (min(box[-1][0, 0], box[-1][2, 0]), box[-1][2, 1] - 10),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, self.range_rgb[color], 1)
+            
+            # if i == color:
+            #     return img, world_x, (world_y+20), i
+            
+            # distance = math.sqrt(pow(world_x - self.last_x, 2) + pow(world_y - self.last_y, 2))
+            # self.last_x, self.last_y = world_x, world_y  # Update last_x and last_y
 
-        return img, world_x, (world_y+20), i
+        return img, world_x, world_y, angle
     
     def main(self):
         

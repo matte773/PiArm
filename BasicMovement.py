@@ -85,14 +85,21 @@ class Movement:
             Board.setBusServoPulse(1, self.SERVO_GRIPPER_CLOSED, 500)
         time.sleep(1)
 
+    
+
+    def rotate_gripper(self, angle):
+        Board.setBusServoPulse(2, angle, 500)
+        time.sleep(1)
+
     def move_to(self, x, y, z, pitch=-90, roll=-90, yaw=0, duration=1000):
         AK.setPitchRangeMoving((x, y, z), pitch, roll, yaw, duration)
         time.sleep(duration / 1000)
 
-    def pick_from(self, x, y):
+    def pick_from(self, x, y, angle):
         self.operate_gripper(False)  # Ensure gripper is open
         print(f"Picking from ({x}, {y}) and Gripper open")
         self.move_to(x, y, 12)  # Move above the object
+        self.rotate_gripper(angle)  # Rotate the gripper to the object
         self.move_to(x, y, 2)  # Move down to the object
         self.operate_gripper(True)  # Close gripper to pick
         self.move_to(x, y, 12)  # Lift the object
@@ -108,10 +115,36 @@ class Movement:
         self.move_to(target_x, target_y, 12)  # Move back up
         
         return True
+    
+    def place_at_pallet(self, number):
 
-    def pick_and_place(self, x, y, color):
-        self.pick_from(x, y)
+        print(f"Number: {number}")
+
+        target_x, target_y = -15 + 1, -7 - 0.5
+
+        if number == 1:
+            target_z = 5
+        elif number == 2:
+            target_z = 8
+        else:
+            target_z = 1.5
+
+        print(f"Placing at ({target_x}, {target_y}, {target_z})")
+        self.move_to(target_x, target_y, 12)  # Move above the place location
+        self.move_to(target_x, target_y, target_z)  # Move down to the place position
+        self.operate_gripper(False)  # Open gripper to place the object
+        self.move_to(target_x, target_y, 12)  # Move back up
+        
+        return True
+
+    def pick_and_place(self, x, y, angle, color):
+        self.pick_from(x, y, angle)
         self.place_at(color)
+
+    def pallet(self, x, y, angle, number):
+        self.pick_from(x, y, angle)
+        self.place_at_pallet(number)
+
 
     def move(self, x, y):
         coordinate = {

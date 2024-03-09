@@ -46,12 +46,16 @@ def runner(tracker, movement):
         movement.move()
 
 def main():
+    #Set true if you want to palletize instead of sort the boxes
+    palletize = False
+
     # Initialize Camera and Movement objects
     camera = Camera()
     tracker = ColorTracker()
     movement = Movement()
 
-    color = 'blue'
+    #color = 'blue'
+    color = ['red', 'green', 'blue']
     tracker.detect_color = ['red', 'green', 'blue']
     #tracker.start()
 
@@ -63,70 +67,18 @@ def main():
     while True:
             img = camera.frame
             if img is not None:
-                print("Camera initialized")
-                frame, x, y, i = tracker.run(img)
-                movement.pick_and_place(x, y, color)
-                #break
+                num = 0
+                for i in color:
+                    #print("Camera initialized")
+                    frame, x, y, angle = tracker.run(img, i)
+                    if x is not None and y is not None and angle is not None:
+                        #print(f"X: {x}, Y: {y}, Color: {ret_color}")
+                        if palletize:
+                            movement.pallet(x, y, angle, num)
+                            num += 1
+                        else: 
+                            movement.pick_and_place(x, y, angle, i)
 
-    # Start camera and movement threads
-    # camera_thread = threading.Thread(target=camera.camera_task, daemon=True)
-    # tracker_thread = threading.Thread(target=tracker.main, daemon=True)
-    # movement_thread = threading.Thread(target=movement.move, daemon=True)
-    #runner_thread = threading.Thread(target=runner(tracker, movement), daemon=True)
-
-
-
-    # Start the motion control worker thread
-    motion_thread = threading.Thread(target=movement.pick_and_place, args=(task_queue,))
-    motion_thread.start()
-
-    # Start the image detection worker thread
-    detection_thread = threading.Thread(target=image_detection_worker, args=(camera, tracker, task_queue, frame_queue))
-    detection_thread.start()
-
-    print("Starting threads")
-    # camera_thread.start()
-    # tracker_thread.start()
-    # movement_thread.start()
-    #runner_thread.start()
-    print("Threads started")
-
-    try:
-        while True:
-            time.sleep(1)  # Keep the main thread alive
-    except KeyboardInterrupt:
-    #     tracker_thread.join()
-    #     camera.camera_close()
-    #     camera_thread.join()
-    #     movement.exit()
-    #     movement_thread.join()
-         print("Program exit")
-        
-# def main():
-#     my_camera = Camera()
-#     my_camera.camera_open()
-
-#     color = 'red'
-#     tracker = ColorTracker()
-#     #tracker.set_target_color((color,))
-#     tracker.detect_color = color
-#     #tracker.start()
-
-#     motion_controller = Movement()
-
-#     while True:
-
-#         img = my_camera.frame
-#         if img is not None:
-#             frame, x, y, color= tracker.run(img)
-#             motion_controller.pick_and_place(x, y, color)
-#             cv2.imshow('Frame', frame)
-#             key = cv2.waitKey(1)
-#             if key == 27:  # ESC key
-#                 break
-
-#     my_camera.camera_close()
-#     cv2.destroyAllWindows()
-
+                
 if __name__ == "__main__":
     main()
